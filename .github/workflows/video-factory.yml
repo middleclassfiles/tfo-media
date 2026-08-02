@@ -29,7 +29,7 @@ jobs:
           cache-dependency-path: mpt/requirements.txt
 
       - name: Install video machine
-        run: pip install -r mpt/requirements.txt psycopg2-binary
+        run: pip install -r mpt/requirements.txt pg8000
 
       - name: Configure keys
         run: |
