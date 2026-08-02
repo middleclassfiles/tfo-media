@@ -250,8 +250,10 @@ def process_row(conn, row, channel_id):
         log(f"script: {script[:80]}")
         if not start_mpt():
             raise RuntimeError("video machine failed to start")
-        video_rel = make_video(script)
-        src = os.path.join(MPT_DIR, "storage", "tasks", video_rel.strip("/"))
+        video_rel = make_video(script).strip("/")
+        if video_rel.startswith("tasks/"):
+            video_rel = video_rel[len("tasks/"):]
+        src = os.path.join(MPT_DIR, "storage", "tasks", video_rel)
         if not os.path.exists(src):
             raise RuntimeError(f"video file missing: {src}")
         dest_dir = os.path.join(REPO_POSTS, str(row_id))
