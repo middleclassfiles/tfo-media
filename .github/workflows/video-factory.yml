@@ -1,0 +1,85 @@
+name: Video Factory
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  factory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download video machine (pinned version)
+        uses: actions/checkout@v4
+        with:
+          repository: harry0703/MoneyPrinterTurbo
+          ref: 254cd028906ee657eab844dc94087cdbea2a7aa8
+          path: mpt
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: mpt/requirements.txt
+
+      - name: Install video machine
+        run: pip install -r mpt/requirements.txt psycopg2-binary
+
+      - name: Configure keys
+        run: |
+          cat > mpt/config.toml <<EOF
+          log_level = "INFO"
+          listen_host = "127.0.0.1"
+          listen_port = 8080
+
+          [app]
+          video_source = "pexels"
+          pexels_api_keys = ["${{ secrets.PEXELS_API_KEY }}"]
+          llm_provider = "groq"
+          groq_api_key = "${{ secrets.GROQ_API_KEY }}"
+          groq_base_url = "https://api.groq.com/openai/v1"
+          groq_model_name = "llama-3.1-8b-instant"
+          subtitle_provider = "edge"
+
+          [whisper]
+          [proxy]
+          [azure]
+          [siliconflow]
+          [elevenlabs]
+          [chatterbox]
+          [ui]
+          EOF
+
+      - name: Run video factory
+        env:
+          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
+          SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
+          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          BUFFER_KEY: ${{ secrets.BUFFER_KEY }}
+          BUFFER_CHANNEL_ID: ${{ secrets.BUFFER_CHANNEL_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          GH_OWNER: middleclassfiles
+          GH_REPO: tfo-media
+          MPT_DIR: mpt
+        run: python cloud-pipeline.py
+
+      - name: Push videos
+        run: |
+          git config user.name "video-factory"
+          git config user.email "video-factory@users.noreply.github.com"
+          git add posts
+          if git diff --cached --quiet; then
+            echo "nothing new to push"
+          else
+            git commit -m "videos from cloud factory"
+            git push
+          fi
