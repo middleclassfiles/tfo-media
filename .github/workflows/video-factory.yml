@@ -29,7 +29,7 @@ jobs:
           cache-dependency-path: mpt/requirements.txt
 
       - name: Install video machine
-        run: pip install -r mpt/requirements.txt pg8000
+        run: pip install -r mpt/requirements.txt psycopg2-binary
 
       - name: Configure keys
         run: |
@@ -59,6 +59,7 @@ jobs:
       - name: Run video factory
         env:
           SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_HOSTADDR: ${{ secrets.SUPABASE_DB_HOSTADDR }}
           SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
           SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
           SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
