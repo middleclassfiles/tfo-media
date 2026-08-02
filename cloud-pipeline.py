@@ -3,10 +3,11 @@ import sys
 import time
 import re
 import json
+import ssl
 import shutil
 import datetime
 import subprocess
-import psycopg2
+import pg8000.dbapi
 import requests
 
 try:
@@ -28,14 +29,14 @@ HEADERS = {
 
 
 def db():
-    return psycopg2.connect(
+    return pg8000.dbapi.connect(
         host=os.environ["SUPABASE_DB_HOST"],
-        port=int(os.environ.get("SUPABASE_DB_PORT", "5432")),
-        dbname=os.environ.get("SUPABASE_DB_NAME", "postgres"),
+        port=int(os.environ.get("SUPABASE_DB_PORT", "6543")),
+        database=os.environ.get("SUPABASE_DB_NAME", "postgres"),
         user=os.environ["SUPABASE_DB_USER"],
         password=os.environ["SUPABASE_DB_PASSWORD"],
-        sslmode="require",
-        connect_timeout=15,
+        ssl_context=ssl.create_default_context(),
+        timeout=15,
     )
 
 
