@@ -29,13 +29,16 @@ HEADERS = {
 
 
 def db():
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
     return pg8000.dbapi.connect(
         host=os.environ["SUPABASE_DB_HOST"],
         port=int(os.environ.get("SUPABASE_DB_PORT", "6543")),
         database=os.environ.get("SUPABASE_DB_NAME", "postgres"),
         user=os.environ["SUPABASE_DB_USER"],
         password=os.environ["SUPABASE_DB_PASSWORD"],
-        ssl_context=ssl.create_default_context(),
+        ssl_context=ctx,
         timeout=15,
     )
 
