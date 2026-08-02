@@ -95,11 +95,16 @@ def extract_meta(html):
 
 def gen_script(title, price):
     prompt = (
-        "You write short product promo voiceover scripts for Instagram Reels. "
+        "You write short voiceover scripts for Instagram Reels that showcase a "
+        "fashion product the way a fashion model presents it on a runway. "
         f"Product: {title}" + (f" Price: Rs {price}." if price else "") +
-        " Write one script, max 70 words, friendly excited Indian English, "
-        "strong hook first sentence, 2-3 benefits, one clear call to action to "
-        "tap the link in bio. Output only the script text."
+        " Requirements: one single model wearing THIS product only; a slow, "
+        "confident modeling walk; show the fit, fabric, design details and how "
+        "versatile it is for different occasions; elegant styling words only; "
+        "never mention other people, other outfits or multiple looks. "
+        "Max 70 words, friendly excited Indian English, strong hook first "
+        "sentence, end with a clear call to action to comment LINK to get the "
+        "buy link. Output only the script text."
     )
     body = {
         "model": "llama-3.1-8b-instant",
@@ -114,6 +119,36 @@ def gen_script(title, price):
     )
     r.raise_for_status()
     return r.json()["choices"][0]["message"]["content"].strip()
+
+
+def search_terms(title):
+    t = title.lower()
+    if any(k in t for k in ("kurti", "kurta", "ethnic", "traditional")):
+        return [
+            "indian woman model traditional dress",
+            "woman wearing kurti fashion",
+            "female model indian ethnic wear",
+            "woman traditional outfit model",
+        ]
+    if any(k in t for k in ("saree", "sari", "lehenga", "anarkali")):
+        return [
+            "indian woman saree model",
+            "woman wearing saree fashion",
+            "female model traditional indian dress",
+        ]
+    if any(k in t for k in ("dress", "gown", "frock", "top", "jeans", "skirt")):
+        return [
+            "woman model dress fashion shoot",
+            "female model wearing dress",
+            "model fashion dress studio",
+            "woman elegant dress walk",
+        ]
+    return [
+        "woman model fashion outfit",
+        "female model fashion showcase",
+        "woman stylish outfit walk",
+        "fashion model studio",
+    ]
 
 
 def mpt_alive():
@@ -141,12 +176,16 @@ def start_mpt():
     return False
 
 
-def make_video(subject):
+def make_video(subject, script, terms):
     body = {
         "video_subject": subject[:100],
+        "video_script": script,
+        "video_terms": terms,
         "video_aspect": "9:16",
         "voice_name": VOICE,
         "subtitle_enabled": True,
+        "video_clip_duration": 8,
+        "video_concat_mode": "sequential",
     }
     r = requests.post(MPT_URL + "/api/v1/videos", json=body, timeout=30)
     r.raise_for_status()
@@ -250,7 +289,7 @@ def process_row(conn, row, channel_id):
         log(f"script: {script[:80]}")
         if not start_mpt():
             raise RuntimeError("video machine failed to start")
-        video_rel = make_video(script).strip("/")
+        video_rel = make_video(title, script, search_terms(title)).strip("/")
         if video_rel.startswith("tasks/"):
             video_rel = video_rel[len("tasks/"):]
         src = os.path.join(MPT_DIR, "storage", "tasks", video_rel)
@@ -276,7 +315,7 @@ def process_row(conn, row, channel_id):
         if proc.returncode != 0:
             raise RuntimeError(f"git push: {proc.stderr[-200:]}")
         video_url = f"https://raw.githubusercontent.com/{GH_OWNER}/{GH_REPO}/main/posts/{row_id}/video.mp4"
-        caption = f"{title}\n\nFound this gem and had to share \u2764\n\nShop it here \u2192 link in bio\n\n#fashion #ootd #styleinspo #affiliate #ad"
+        caption = f"{title}\n\n\u2728 One look, endless styles \u2728\n\n\U0001F4AC Comment \u201CLINK\u201D to get the buy link\n\n#fashion #ootd #styleinspo #affiliate #ad"
         res = buffer_post(video_url, caption, due_at)
         post_id = res.get("data", {}).get("createPost", {}).get("post", {}).get("id")
         if not post_id:
