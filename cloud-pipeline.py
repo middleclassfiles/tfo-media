@@ -252,7 +252,7 @@ def build_video(workdir, title, script, dress_urls, identity_url):
 
     with open(os.path.join(workdir, "list.txt"), "w") as f:
         for s in segments:
-            f.write(f"file '{s}'\n")
+            f.write(f"file '{os.path.abspath(s)}'\n")
     silent = os.path.join(workdir, "silent.mp4")
     subprocess.run(
         [ffmpeg, "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", "0.5",
@@ -367,6 +367,32 @@ def process_row(conn, row, channel_id):
 
         workdir = os.path.join(REPO_POSTS, str(row_id))
         os.makedirs(workdir, exist_ok=True)
+
+        identity_url = f"https://raw.githubusercontent.com/{GH_OWNER}/{GH_REPO}/main/{REPO_MODEL}/identity.png"
+        with conn.cursor() as cur:
+            cur.execute("select value from tfo_settings where key='model_photo'")
+            mp = cur.fetchone()
+        if mp and mp[0]:
+            raw = base64.b64decode(mp[0])
+            with open(os.path.join(workdir, "identity.jpg"), "wb") as f:
+                f.write(raw)
+            proc = subprocess.run(
+                ["git", "add", REPO_POSTS], capture_output=True, text=True, timeout=60
+            )
+            proc = subprocess.run(
+                [
+                    "git", "-c", "user.name=video-factory",
+                    "-c", "user.email=video-factory@users.noreply.github.com",
+                    "commit", "-m", f"model {row_id}",
+                ],
+                capture_output=True, text=True, timeout=60,
+            )
+            if proc.returncode != 0 and "nothing to commit" not in proc.stderr:
+                raise RuntimeError(f"git commit: {proc.stderr[-200:]}")
+            proc = subprocess.run(["git", "push"], capture_output=True, text=True, timeout=120)
+            if proc.returncode != 0:
+                raise RuntimeError(f"git push: {proc.stderr[-200:]}")
+            identity_url = f"https://raw.githubusercontent.com/{GH_OWNER}/{GH_REPO}/main/posts/{row_id}/identity.jpg"
 
         images = []
         if dress_images:
